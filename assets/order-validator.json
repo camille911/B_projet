@@ -10,6 +10,10 @@
   "inputs": ["order"],
   "output": "None or OrderValidationError",
   "install_spec": "order-api-b==0.1.0",
+  "contract_path": "docs/api.md#3-b1-订单校验",
+  "contract_version": "1.0.0",
+  "schema": "docs/schemas/order.schema.json",
+  "properties": {"mutates_input": false, "additional_fields": "accepted"},
   "visibility": {"developer": "contract_only", "tester": "contract_only", "admin": "full"},
   "dependencies": []
 }

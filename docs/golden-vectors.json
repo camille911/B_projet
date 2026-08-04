@@ -1,0 +1,35 @@
+{
+  "document_version": "1.0.0",
+  "vectors": [
+    {
+      "id": "outbound-unicode-order-v1",
+      "api": "build_outbound_request",
+      "input": {
+        "order": {
+          "order_id": "ORD-1",
+          "customer_id": "客户-001",
+          "amount": "12.34",
+          "currency": "CNY"
+        },
+        "secret": "demo-secret",
+        "timestamp": 1735689600
+      },
+      "expected": {
+        "body": {
+          "order_id": "ORD-1",
+          "customer_id": "客户-001",
+          "amount": "12.34",
+          "currency": "CNY"
+        },
+        "timestamp": 1735689600,
+        "signature": "cc5a2da1c12fe20f83e401cccdd95445d4b63053ee292d500a5a2aa2634d8bf0"
+      },
+      "invariants": [
+        "order field insertion order does not change signature",
+        "extra order fields are absent from body and do not change signature",
+        "demo secret only"
+      ]
+    }
+  ]
+}
+

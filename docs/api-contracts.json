@@ -1,0 +1,78 @@
+{
+  "document_version": "1.0.0",
+  "status": "normative",
+  "package": {
+    "distribution": "order-api-b",
+    "import_name": "order_api_b",
+    "version": "0.1.0",
+    "python": ">=3.11",
+    "demo_start_commit": "9bcd42d0ebb48aa75492930a9b3c7c44726ba3e9",
+    "b3_integrated_commit": "d05546158e224be41dd554f05daf61f8da568b71",
+    "dependencies": ["b-contracts==0.1.0", "order-outbound-b3==0.1.0"]
+  },
+  "artifact_references": [
+    {"install_spec": "b-contracts==0.1.0", "sha256": "40e0b168198bb17e25ab87ab09786a5aca7f94244aae7693710a097ca93d00f4"},
+    {"install_spec": "order-outbound-b3==0.1.0", "sha256": "b3aec7a07c8a8b4d660be35ac7ccaa3f5996b55adeb180dfae9fea1b0d74c3c0"},
+    {"install_spec": "company-shared-api==0.1.0", "sha256": "4b6cb914cd1398bb8a7ae08489bd36281eb294406f5feb905665b120aa54e067"}
+  ],
+  "order_contract": {
+    "type": "dict",
+    "required_fields": ["order_id", "customer_id", "amount", "currency"],
+    "additional_fields": "accepted by B1 and removed by B3",
+    "fields": {
+      "order_id": {"type": "str", "constraints": ["strip result is non-empty"], "normalized": false},
+      "customer_id": {"type": "str", "constraints": ["strip result is non-empty", "Unicode supported"], "normalized": false},
+      "amount": {"type": "str", "pattern": "^(?:0|[1-9]\\d*)\\.\\d{2}$", "constraints": ["Decimal value > 0"]},
+      "currency": {"type": "str", "enum": ["CNY", "HKD", "USD"], "case_sensitive": true}
+    }
+  },
+  "apis": [
+    {
+      "symbol": "validate_order",
+      "signature": "validate_order(order: dict) -> None",
+      "output": {"type": "None"},
+      "errors": [
+        {"type": "OrderValidationError", "condition": "order is not dict", "message": "order must be a dictionary"},
+        {"type": "OrderValidationError", "condition": "order_id is missing, non-str, or blank", "message": "order_id must be a non-empty string"},
+        {"type": "OrderValidationError", "condition": "customer_id is missing, non-str, or blank", "message": "customer_id must be a non-empty string"},
+        {"type": "OrderValidationError", "condition": "amount type, format, or value is invalid", "message": "amount must be a positive two-decimal string"},
+        {"type": "OrderValidationError", "condition": "currency is not allowed", "message": "currency must be one of CNY, HKD, USD"}
+      ],
+      "mutates_input": false,
+      "side_effects": []
+    },
+    {
+      "symbol": "order_validator_port",
+      "signature": "order_validator_port() -> OrderValidator",
+      "protocol": "Callable[[dict], None]",
+      "returns": "real validate_order callable",
+      "errors": [],
+      "mutates_input": false
+    },
+    {
+      "symbol": "build_outbound_request",
+      "signature": "build_outbound_request(order: dict, secret: str, timestamp: int) -> dict",
+      "inputs": [
+        {"name": "order", "contract": "order_contract"},
+        {"name": "secret", "type": "str", "constraints": ["non-empty", "sensitive"]},
+        {"name": "timestamp", "type": "int", "constraints": ["bool is rejected"]}
+      ],
+      "output_schema": "schemas/outbound-response.schema.json",
+      "body_fields": ["order_id", "customer_id", "amount", "currency"],
+      "extra_order_fields": "dropped before signing",
+      "dependencies": [
+        {"asset_id": "module-b3/outbound-request", "install_spec": "order-outbound-b3==0.1.0"},
+        {"asset_id": "shared-api-a/request-signer", "install_spec": "company-shared-api==0.1.0"}
+      ],
+      "errors": [
+        {"type": "OrderValidationError", "condition": "B1 rejects order", "propagation": "unchanged"},
+        {"type": "ValueError", "condition": "signer rejects secret", "propagation": "unchanged"},
+        {"type": "TypeError", "condition": "signer rejects timestamp", "propagation": "unchanged"}
+      ],
+      "mutates_input": false,
+      "deterministic_for_same_inputs": true,
+      "security": ["never log secret", "reuse signer package; do not copy HMAC implementation"]
+    }
+  ]
+}
+
