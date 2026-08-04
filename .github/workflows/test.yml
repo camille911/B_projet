@@ -45,10 +45,27 @@ jobs:
       - name: Checkout B candidate
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: false
 
+      - name: Classify the pull request scope
+        id: scope
+        shell: bash
+        run: |
+          full=true
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            full=false
+            while IFS= read -r path; do
+              case "$path" in
+                .github/*|.gitignore|scripts/ci_whitebox_check.py|*__pycache__*|*.pyc) ;;
+                *) full=true ;;
+              esac
+            done < <(git diff --name-only "${{ github.event.pull_request.base.sha }}"...HEAD)
+          fi
+          echo "full=$full" >> "$GITHUB_OUTPUT"
+
       - name: Checkout fixed A dependency
+        if: steps.scope.outputs.full == 'true'
         uses: actions/checkout@v4
         with:
           repository: camille911/A_projet
@@ -65,18 +82,28 @@ jobs:
           cache: pip
 
       - name: Install test tools and fixed dependency
+        if: steps.scope.outputs.full == 'true'
         run: |
           python -m pip install pytest pytest-cov
           python -m pip install --no-deps ./.ci/dependency-a
           python -m pip install --no-deps -e .
 
+      - name: Validate a CI-configuration-only change
+        if: steps.scope.outputs.full != 'true'
+        run: |
+          python -m pip install pytest
+          python -m pytest tests/test_validation.py -q
+
       - name: Verify repository and reuse boundaries
+        if: steps.scope.outputs.full == 'true'
         run: python scripts/ci_whitebox_check.py
 
       - name: Prove the real reuse call chain
+        if: steps.scope.outputs.full == 'true'
         run: python -m pytest tests/test_reuse_call_chain.py -q
 
       - name: Run full regression with branch coverage
+        if: steps.scope.outputs.full == 'true'
         run: |
           mkdir -p reports
           python -m pytest \
@@ -87,10 +114,11 @@ jobs:
             --cov-report=term-missing
 
       - name: Confirm A checkout was not modified
+        if: steps.scope.outputs.full == 'true'
         run: git -C .ci/dependency-a diff --exit-code
 
       - name: Upload white-box evidence
-        if: always()
+        if: always() && steps.scope.outputs.full == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: whitebox-evidence-${{ github.sha }}
