@@ -1,0 +1,19 @@
+{
+  "asset_id": "project-b/outbound-request",
+  "path": "src/order_api_b/outbound.py",
+  "symbol": "build_outbound_request",
+  "kind": "function",
+  "language": "python",
+  "signature": "build_outbound_request(order: dict, secret: str, timestamp: int) -> dict",
+  "summary": "使用真实 B1 校验并接入独立交付的订单出站请求构造能力",
+  "aliases": ["B3集成", "订单出站请求", "signed order integration"],
+  "inputs": ["order", "secret", "timestamp"],
+  "output": "body_timestamp_signature",
+  "install_spec": "order-api-b==0.1.0",
+  "visibility": {"developer": "contract_only", "tester": "contract_only", "admin": "full"},
+  "dependencies": [
+    {"asset_id": "module-b3/outbound-request", "install_spec": "order-outbound-b3==0.1.0"},
+    {"asset_id": "shared-api-a/request-signer", "install_spec": "company-shared-api==0.1.0"}
+  ]
+}
+
