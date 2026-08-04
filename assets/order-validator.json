@@ -1,0 +1,16 @@
+{
+  "asset_id": "project-b/order-validator",
+  "path": "src/order_api_b/validation.py",
+  "symbol": "validate_order",
+  "kind": "function",
+  "language": "python",
+  "signature": "validate_order(order: dict) -> None",
+  "summary": "校验订单编号、客户编号、两位小数正金额和允许的币种",
+  "aliases": ["B1订单校验", "订单契约校验", "order validation"],
+  "inputs": ["order"],
+  "output": "None or OrderValidationError",
+  "install_spec": "order-api-b==0.1.0",
+  "visibility": {"developer": "contract_only", "tester": "contract_only", "admin": "full"},
+  "dependencies": []
+}
+
