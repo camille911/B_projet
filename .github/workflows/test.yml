@@ -1,12 +1,99 @@
-name: test
-on: [push, pull_request]
+name: remote-whitebox
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      a_ref:
+        description: Exact A repository commit or tag to verify
+        required: true
+        default: bb53654cd5370e72e0e4a8515851048b71f89e8d
+
+permissions:
+  contents: read
+
+concurrency:
+  group: remote-whitebox-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  unit:
+  baseline:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: {python-version: "3.12"}
-      - run: python -m pip install pytest --no-deps -e .
-      - run: python -m pytest tests/test_validation.py
+      - name: Checkout B
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install baseline test tools
+        run: python -m pip install pytest
+      - name: Run B1 baseline tests
+        run: python -m pytest tests/test_validation.py -q
 
+  whitebox:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout B candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Checkout fixed A dependency
+        uses: actions/checkout@v4
+        with:
+          repository: camille911/A_projet
+          ref: ${{ inputs.a_ref || 'bb53654cd5370e72e0e4a8515851048b71f89e8d' }}
+          path: .ci/dependency-a
+          fetch-depth: 1
+          persist-credentials: false
+          token: ${{ secrets.A_REPOSITORY_READ_TOKEN || github.token }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install test tools and fixed dependency
+        run: |
+          python -m pip install pytest pytest-cov
+          python -m pip install --no-deps ./.ci/dependency-a
+          python -m pip install --no-deps -e .
+
+      - name: Verify repository and reuse boundaries
+        run: python scripts/ci_whitebox_check.py
+
+      - name: Prove the real reuse call chain
+        run: python -m pytest tests/test_reuse_call_chain.py -q
+
+      - name: Run full regression with branch coverage
+        run: |
+          mkdir -p reports
+          python -m pytest \
+            --junitxml=reports/junit.xml \
+            --cov=order_api_b \
+            --cov-branch \
+            --cov-report=xml:reports/coverage.xml \
+            --cov-report=term-missing
+
+      - name: Confirm A checkout was not modified
+        run: git -C .ci/dependency-a diff --exit-code
+
+      - name: Upload white-box evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: whitebox-evidence-${{ github.sha }}
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 14
