@@ -7,7 +7,7 @@ name = "order-api-b"
 version = "0.1.0"
 description = "Order API B"
 requires-python = ">=3.11"
-dependencies = ["b-contracts==0.1.0", "order-outbound-b3==0.1.0"]
+dependencies = ["b-contracts==0.1.0", "order-outbound-b3==0.1.0", "company-shared-api==0.1.0"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
